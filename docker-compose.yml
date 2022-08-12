@@ -1,0 +1,79 @@
+ersion: '2'
+
+services:
+  mysql:
+    container_name: mysql
+    image: mysql:5.7
+    ports:
+      - '3306:3306'
+    volumes:
+      - './zabbix/mysql:/var/lib/data'
+    environment:
+      - MYSQL_ROOT_PASSWORD=Arkveid-01
+      - MYSQL_DATABASE=zabbix
+      - MYSQL_USER=Alex
+      - MYSQL_PASSWORD=Arkveid-01
+
+  zabbix-server:
+    container_name: zabbix-server
+    image: zabbix/zabbix-server-mysql:ubuntu-5.0.1
+    links:
+      - mysql
+    restart: always
+    ports:
+      - '10051:10051'
+    volumes:
+      - './zabbix/alertscripts:/usr/lib/zabbix/alertscripts'
+    environment:
+      - DB_SERVER_HOST=mysql
+      - MYSQL_DATABASE=zabbix
+      - MYSQL_USER=Alex
+      - MYSQL_PASSWORD=Arkveid-01
+    depends_on:
+      - mysql
+
+  zabbix-frontend:
+    container_name: zabbix-frontend
+    image: zabbix/zabbix-web-nginx-mysql:ubuntu-5.0.1
+    links:
+      - mysql
+    restart: always
+    ports:
+      - '80:8080'
+    environment:
+      - DB_SERVER_HOST=mysql
+      - MYSQL_DATABASE=zabbix
+      - MYSQL_USER=Alex
+      - MYSQL_PASSWORD=Arkveid-01
+      - PHP_TZ=Europe/Minsk
+    depends_on:
+      - mysql
+   
+  grafana:
+    container_name: grafana
+    image: grafana/grafana
+    links:
+      - mysql
+      - zabbix-server
+    restart: always
+    ports:
+      - '3000:3000'
+    environment: 
+      - GF_INSTALL_PLUGINS=alexanderzobnin-zabbix-app
+    depends_on:
+      - mysql
+      - zabbix-server
+  zabbix-agent:
+    container_name: zabbix-agent
+    image: zabbix/zabbix-agent:ubuntu-5.0.1
+    user: root
+    links:
+      - zabbix-server
+    restart: always
+    privileged: true
+    volumes:
+      - /var/run:/var/run
+    ports:
+      - 10050:10050
+    environment:
+      - ZBX_HOSTNAME=zabbix-server
